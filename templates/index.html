@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cuaca Terkini - Python Flask</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Cek Cuaca Terkini</h1>
+            <p class="subtitle">Backend didukung oleh Python Flask</p>
+            <form id="search-form">
+                <input type="text" id="city-input" placeholder="Masukkan nama kota..." value="Semarang" required>
+                <button type="submit">Cari</button>
+            </form>
+        </header>
+
+        <div id="loading" class="hidden">Memuat data cuaca...</div>
+        <div id="error-msg" class="hidden"></div>
+
+        <main id="weather-content" class="hidden">
+            <section class="current-weather">
+                <h2 id="location-name">-</h2>
+                <div class="temp-display">
+                    <span id="current-temp">0</span>°C
+                </div>
+                <p id="weather-desc" class="desc">-</p>
+
+                <div class="details-grid">
+                    <div class="detail-card">
+                        <span>Terasa Seperti</span>
+                        <strong id="feels-like">0°C</strong>
+                    </div>
+                    <div class="detail-card">
+                        <span>Kelembapan</span>
+                        <strong id="humidity">0%</strong>
+                    </div>
+                    <div class="detail-card">
+                        <span>Kecepatan Angin</span>
+                        <strong id="wind-speed">0 km/h</strong>
+                    </div>
+                </div>
+            </section>
+
+            <section class="forecast">
+                <h3>Prakiraan 5 Hari Ke Depan</h3>
+                <div id="forecast-list" class="forecast-list"></div>
+            </section>
+        </main>
+    </div>
+
+    <script>
+        const weatherCodes = {
+            0: "Cerah", 1: "Cerah Berawan", 2: "Berawan", 3: "Sangat Berawan",
+            45: "Kabut", 48: "Kabut Tebal", 51: "Gerimis Ringan", 53: "Gerimis Sedang",
+            61: "Hujan Ringan", 63: "Hujan Sedang", 65: "Hujan Lebat",
+            80: "Hujan Lokal Ringan", 81: "Hujan Lokal Sedang", 95: "Badai Petir"
+        };
+
+        const form = document.getElementById('search-form');
+        const cityInput = document.getElementById('city-input');
+        const loading = document.getElementById('loading');
+        const errorMsg = document.getElementById('error-msg');
+        const weatherContent = document.getElementById('weather-content');
+
+        async function fetchWeather(city) {
+            loading.classList.remove('hidden');
+            errorMsg.classList.add('hidden');
+            weatherContent.classList.add('hidden');
+
+            try {
+                const response = await fetch(`/api/cuaca?kota=${encodeURIComponent(city)}`);
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || 'Terjadi kesalahan sistem.');
+                }
+
+                // Render Data
+                document.getElementById('location-name').innerText = data.lokasi;
+                document.getElementById('current-temp').innerText = data.saat_ini.suhu;
+                document.getElementById('feels-like').innerText = `${data.saat_ini.terasa_seperti}°C`;
+                document.getElementById('humidity').innerText = `${data.saat_ini.kelembapan}%`;
+                document.getElementById('wind-speed').innerText = `${data.saat_ini.kecepatan_angin} km/h`;
+                document.getElementById('weather-desc').innerText = weatherCodes[data.saat_ini.kode_cuaca] || "Berawan";
+
+                // Render Forecast
+                const forecastList = document.getElementById('forecast-list');
+                forecastList.innerHTML = '';
+                data.harian.forEach(item => {
+                    const card = document.createElement('div');
+                    card.className = 'forecast-card';
+                    card.innerHTML = `
+                        <p class="date">${item.tanggal}</p>
+                        <p class="desc">${weatherCodes[item.kode_cuaca] || 'Berawan'}</p>
+                        <p class="temp">${item.temp_min}°C - ${item.temp_max}°C</p>
+                    `;
+                    forecastList.appendChild(card);
+                });
+
+                weatherContent.classList.remove('hidden');
+            } catch (err) {
+                errorMsg.innerText = err.message;
+                errorMsg.classList.remove('hidden');
+            } finally {
+                loading.classList.add('hidden');
+            }
+        }
+
+        form.addEventListener('submit', (e) => {
+            e.preventDefault();
+            fetchWeather(cityInput.value.trim());
+        });
+
+        // Load default kota saat halaman terbuka
+        fetchWeather(cityInput.value);
+    </script>
+</body>
+</html>
